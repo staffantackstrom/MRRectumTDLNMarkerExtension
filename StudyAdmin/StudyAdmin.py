@@ -6,7 +6,7 @@ from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 
 #
-# StudyAdmin
+# StudyAdmin 
 #
 
 class StudyAdmin(ScriptedLoadableModule):
