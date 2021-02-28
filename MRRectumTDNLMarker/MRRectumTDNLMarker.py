@@ -1,4 +1,5 @@
 import os
+import os.path
 import unittest
 import logging
 import vtk, qt, ctk, slicer, numpy
@@ -6,17 +7,17 @@ from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 
 #
-# StudyAdmin 
+# MRRectumTDNLMarker 
 #
 
-class StudyAdmin(ScriptedLoadableModule):
+class MRRectumTDNLMarker(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "StudyAdmin"  # TODO: make this more human readable by adding spaces
+    self.parent.title = "TDNL Marker"  # TODO: make this more human readable by adding spaces
     self.parent.categories = ["Research"]  # TODO: set categories (folders where the module shows up in the module selector)
     self.parent.dependencies = []  # TODO: add here list of module names that this module requires
     self.parent.contributors = [""]  # TODO: replace with "Firstname Lastname (Organization)"
@@ -30,10 +31,10 @@ and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR0132
 """  # TODO: replace with organization, grant and thanks.
 
 #
-# StudyAdminWidget
+# MRRectumTDNLMarkerWidget
 #
 
-class StudyAdminWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
+class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   """Uses ScriptedLoadableModuleWidget base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
@@ -55,7 +56,7 @@ class StudyAdminWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     ScriptedLoadableModuleWidget.setup(self)
 
     # Load widget from .ui file (created by Qt Designer)
-    uiWidget = slicer.util.loadUI(self.resourcePath('UI/StudyAdmin.ui'))
+    uiWidget = slicer.util.loadUI(self.resourcePath('UI/MRRectumTDNLMarker.ui'))
     self.layout.addWidget(uiWidget)
     self.ui = slicer.util.childWidgetVariables(uiWidget)
 
@@ -67,17 +68,17 @@ class StudyAdminWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     # Create a new parameterNode
     # This parameterNode stores all user choices in parameter values, node selections, etc.
     # so that when the scene is saved and reloaded, these settings are restored.
-    self.logic = StudyAdminLogic()  
+    self.logic = MRRectumTDNLMarkerLogic()  
 
-    self.studyAdminToolbar = slicer.util.mainWindow().addToolBar('StudyAdmin')
+    self.tdnlMarkerToolbar = slicer.util.mainWindow().addToolBar('TDNLMarker')
     self.patientSelectionComboBox = slicer.qMRMLSubjectHierarchyComboBox()
     self.patientSelectionComboBox.setMRMLScene(slicer.mrmlScene)
     self.patientSelectionComboBox.setAttributeFilter('Level', 'Patient')
     self.prevPatientToolbarButton = qt.QPushButton("Prev pat")
     self.nextPatientToolbarButton = qt.QPushButton("Next pat")
-    self.studyAdminToolbar.addWidget(self.patientSelectionComboBox)
-    self.studyAdminToolbar.addWidget(self.prevPatientToolbarButton)
-    self.studyAdminToolbar.addWidget(self.nextPatientToolbarButton)
+    self.tdnlMarkerToolbar.addWidget(self.patientSelectionComboBox)
+    self.tdnlMarkerToolbar.addWidget(self.prevPatientToolbarButton)
+    self.tdnlMarkerToolbar.addWidget(self.nextPatientToolbarButton)
 
     self.setParameterNode(self.logic.getParameterNode())
 
@@ -251,10 +252,10 @@ class StudyAdminWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       slicer.modules.SegmentEditorWidget.editor.setSegmentationNodeID(segmentationNodeId)
     #slicer.modules.SegmentEditorWidget.editor.blockSignals(wasBlocked)
 #
-# StudyAdminLogic
+# MRRectumTDNLMarkerLogic
 #
 
-class StudyAdminLogic(ScriptedLoadableModuleLogic):
+class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   """This class should implement all the actual
   computation done by your module.  The interface
   should be such that other python code can import
@@ -269,7 +270,9 @@ class StudyAdminLogic(ScriptedLoadableModuleLogic):
     Initialize parameter node with default settings.
     """
     parameterNode.SetParameter("PatientIndex", '-1')
+    parameterNode.SetParameters("NumberOfPatients", self.getPatientDirectories().__len__())
  
+
   def run(self, inputVolume, outputVolume):
     """
     Run the processing algorithm.
@@ -293,6 +296,10 @@ class StudyAdminLogic(ScriptedLoadableModuleLogic):
     cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=True)
 
     logging.info('Processing completed')
+
+  def getPatientDirectories(self):
+    patientDir = "C:/Development/Rectum/nifti"
+    return os.listdir(os.join(patientDir, 'patients'))
 
   def findSeries(self, studySHIndex, id, nameSearch, nameSearch2='', nodeType='vtkMRMLScalarVolumeNode'):
     seriesIds = vtk.vtkIdList()
@@ -336,25 +343,23 @@ class StudyAdminLogic(ScriptedLoadableModuleLogic):
       return -1
     return int(patientIndex)
 
+  def numberOfPatients(self):
+    return int(self.getParameterNode().GetParameter("NumberOfPatients"))
+
   def nextPatient(self):
-    shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-    patientIndex = self.currentPatientIndex()
-    if patientIndex == -1:
+    nextPatientIndex = self.currentPatientIndex() + 1 
+    if numberOfPatients <= 0 or nextPatientIndex >= self.numberOfPatients():
       return
-    pos = shNode.GetItemPositionUnderParent(patientIndex)
-    parent = shNode.GetItemParent(patientIndex)
-    if shNode.GetNumberOfItemChildren(parent) > pos + 1:
-      self.setPatient(shNode.GetItemByPositionUnderParent(parent, pos + 1))
+
+    self.setPatient(nextPatientIndex)
+  
 
   def prevPatient(self):
-    shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-    patientIndex = self.currentPatientIndex()
-    if patientIndex == -1:
+    nextPatientIndex = self.currentPatientIndex() - 1 
+    if numberOfPatients <= 0 or nextPatientIndex < 0:
       return
-    pos = shNode.GetItemPositionUnderParent(patientIndex)
-    parent = shNode.GetItemParent(patientIndex)
-    if pos > 0:
-      self.setPatient(shNode.GetItemByPositionUnderParent(parent, pos - 1))
+
+    self.setPatient(nextPatientIndex)
 
   def setPatient(self, patientSHIndex):
     parameterNode = self.getParameterNode()
@@ -410,85 +415,7 @@ class StudyAdminLogic(ScriptedLoadableModuleLogic):
 
 
 
-  def thresholdFilter(sourceNode, min, max):
-    filter = vtk.vtkImageThreshold()
-    filter.ThresholdBetween(min, max)
-    filter.SetInputData(sourceNode.GetImageData())
-    filter.SetInValue(1)
-    filter.SetOutValue(0)
-    return filter
-
-  def addFilters(sourceFilterA, sourceFilterB):
-    filter = vtk.vtkImageMathematics()
-    filter.SetOperationToAdd()
-    filter.AddInputConnection(0, sourceFilterA.GetOutputPort())
-    filter.AddInputConnection(1, sourceFilterB.GetOutputPort())
-    return filter
-
-  def thresholdVolume(self, sourceNode, name, m, min, max):
-    filter = vtk.vtkImageThreshold()
-    filter.ThresholdBetween(min, max)
-    filter.SetInputData(sourceNode.GetImageData())
-    filter.SetInValue(1)
-    filter.SetOutValue(0)
-    filter.Update()
-    resultNode = self.getOrCreateNode(name)
-    resultNode.SetIJKToRASMatrix(m)
-    resultNode.SetImageDataConnection(filter.GetOutputPort())
-    return resultNode
-
-  def volumeToSegmentationNode(self, sourceNode, name, segmentName):
-    orientedData = slicer.vtkOrientedImageData()
-    orientedData.ShallowCopy(sourceNode.GetImageData())
-    m2 = vtk.vtkMatrix4x4()
-    sourceNode.GetIJKToRASDirectionMatrix(m2)
-    orientedData.SetDirectionMatrix(m2)
-    orientedData.SetOrigin(sourceNode.GetOrigin())
-    orientedData.SetSpacing(sourceNode.GetSpacing())
-    resultSegmentationNode = self.getOrCreateNode(name, 'vtkMRMLSegmentationNode')
-    resultSegmentationNode.CreateDefaultDisplayNodes()
-    resultSegmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(sourceNode)
-    resultSegmentationNode.RemoveSegment(segmentName)
-    resultSegmentationNode.AddSegmentFromBinaryLabelmapRepresentation(orientedData, segmentName)
-    return resultSegmentationNode
-
-  def volumeAndVolume(self, sourceNode1, sourceNode2, name):
-    m = vtk.vtkMatrix4x4()
-    sourceNode1.GetIJKToRASMatrix(m)
-    imageLogicFilter = vtk.vtkImageLogic()
-    imageLogicFilter.SetOperationToAnd()
-    imageLogicFilter.SetInput1Data(sourceNode1.GetImageData())
-    imageLogicFilter.SetInput2Data(sourceNode2.GetImageData())
-    imageLogicFilter.SetOutputTrueValue(1)
-    imageLogicFilter.Update()
-    resultNode = self.getOrCreateNode(name)
-    resultNode.SetImageDataConnection(imageLogicFilter.GetOutputPort())
-    resultNode.SetIJKToRASMatrix(m)
-    return resultNode
-
-  def virtualB0Calc(self, adcNode, b800Node, t2Node):
-    m = vtk.vtkMatrix4x4()
-    t2Node.GetIJKToRASMatrix(m)
-    resizedB800Node = self.resizeVolume(b800Node, t2Node, 'Resized b800')    
-    resizedAdcNode = self.resizeVolume(adcNode, t2Node, 'Resized ADC')
-    b800Arr = slicer.util.arrayFromVolume(resizedB800Node)
-    ADCArr = slicer.util.arrayFromVolume(resizedAdcNode) / 1000000
-    b0Arr = b800Arr*numpy.exp(800 * ADCArr)
-    b0 = self.getOrCreateNode('b0')
-    b0.SetIJKToRASMatrix(m)
-    slicer.util.updateVolumeFromArray(b0, b0Arr)
-    return b0
-
-  def virtualB0(self):
-    parameterNode = self.getParameterNode()
-    adcNode = parameterNode.GetNodeReference("adc")
-    b800Node = parameterNode.GetNodeReference("b800")
-    t2Node = parameterNode.GetNodeReference("t2")
-    if t2Node is None:
-      return
-    b0Node = self.virtualB0Calc(adcNode, b800Node, t2Node)
-    parameterNode.SetNodeReferenceID("b0", b0Node.GetID())
-
+ 
   def elastixRegister(self):
     parameterNode = self.getParameterNode()
     t2Node = parameterNode.GetNodeReference("t2")
@@ -516,37 +443,11 @@ class StudyAdminLogic(ScriptedLoadableModuleLogic):
 
 
 
-  def segmentTumor(self, adcNode, b800Node, t2Node, t2Min=115, t2Max=260, b800Min=100, b800Max=450, adcMin=600, adcMax=1700):
-    m = vtk.vtkMatrix4x4()
-    t2Node.GetIJKToRASMatrix(m)
-
-    segName = 'Comp segmentation'
-    t2SegNode = self.thresholdVolume(t2Node, 'T2 segmentation', m, t2Min, t2Max)
-    t2SegmentationNode = self.volumeToSegmentationNode(t2SegNode, segName, 'T2_Segmentation')
-    
-    b800SegNode = self.thresholdVolume(b800Node, 'b800 segmentation', m, b800Min, b800Max)
-    b800SegmentationNode = self.volumeToSegmentationNode(b800SegNode, segName, 'b800_Segmentation')
-    
-    adcSegNode = self.thresholdVolume(adcNode, 'Segmented ADC', m, adcMin, adcMax)
-    adcSegmentationNode = self.volumeToSegmentationNode(adcSegNode, segName, 'ADC_Segmentation')
-
-    comb1Node = self.volumeAndVolume(t2SegNode, b800SegNode, 'Comb segmented')
-    comb1Node = self.volumeAndVolume(comb1Node, adcSegNode, 'All comb segmented')
-    combSegmentationNode = self.volumeToSegmentationNode(comb1Node, segName, 'All comb Segmentation')
-
-  def segment(self, t2Min=115, t2Max=260, b800Min=100, b800Max=450, adcMin=600, adcMax=1700):
-    parameterNode = self.getParameterNode()
-    adcNode = node = slicer.mrmlScene.GetFirstNodeByName('ADC reg')
-    b800Node = node = slicer.mrmlScene.GetFirstNodeByName('b800 reg')
-    t2Node = parameterNode.GetNodeReference("t2")
-
-    self.segmentTumor(adcNode, b800Node, t2Node, t2Min, t2Max, b800Min, b800Max, adcMin, adcMax)
-
 #
-# StudyAdminTest
+# MRRectumTDNLMarkerTest
 #
 
-class StudyAdminTest(ScriptedLoadableModuleTest):
+class MRRectumTDNLMarkerTest(ScriptedLoadableModuleTest):
   """
   This is the test case for your scripted module.
   Uses ScriptedLoadableModuleTest base class, available at:
@@ -562,9 +463,9 @@ class StudyAdminTest(ScriptedLoadableModuleTest):
     """Run as few or as many tests as needed here.
     """
     self.setUp()
-    self.test_StudyAdmin1()
+    self.test_MRRectumTDNLMarker1()
 
-  def test_StudyAdmin1(self):
+  def test_MRRectumTDNLMarker1(self):
     """ Ideally you should have several levels of tests.  At the lowest level
     tests should exercise the functionality of the logic with different inputs
     (both valid and invalid).  At higher levels your tests should emulate the
@@ -596,7 +497,7 @@ class StudyAdminTest(ScriptedLoadableModuleTest):
 
     # Test the module logic
 
-    logic = StudyAdminLogic()
+    logic = MRRectumTDNLMarkerLogic()
 
     # Test algorithm with non-inverted threshold
     logic.run(inputVolume, outputVolume)
