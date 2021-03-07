@@ -83,7 +83,8 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     self.setParameterNode(self.logic.getParameterNode())
 
     self.ui.patientTreeView.connect("currentItemChanged(vtkIdType)", self.logic.setPatient)
-    self.ui.registerButton.connect("pressed()", self.logic.elastixRegister)
+    #self.ui.registerButton.connect("pressed()", self.logic.elastixRegister)
+    self.ui.registerButton.connect("pressed()", self.logic.nextPatient)
     self.patientSelectionComboBox.connect("currentItemChanged(vtkIdType)", self.logic.setPatient)
     self.prevPatientToolbarButton.connect("pressed()", self.logic.prevPatient)
     self.nextPatientToolbarButton.connect("pressed()", self.logic.nextPatient)
@@ -205,8 +206,8 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         segNode.GetDisplayNode().SetVisibility(self.patientIndex(shId) == newPatientIndex)
 
   def setPatient(self, hierarchyIndex):
-    if not (self.logic.setPatient(self.logic.patientIndex(hierarchyIndex))):
-      return
+    #if not (self.logic.setPatient(self.logic.patientIndex(hierarchyIndex))):
+    return
 
     self.updateGUIFromParameterNode()
     
@@ -243,7 +244,7 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     self.ui.patientTreeView.blockSignals(wasBlocked)
 
     wasBlocked = self.patientSelectionComboBox.blockSignals(True)
-    self.patientSelectionComboBox.setCurrentItem(int(self._parameterNode.GetParameter("PatientIndex")))
+    #self.patientSelectionComboBox.setCurrentItem(int(self._parameterNode.GetParameter("PatientIndex")))
     self.patientSelectionComboBox.blockSignals(wasBlocked)
 
     #wasBlocked = slicer.modules.SegmentEditorWidget.editor.blockSignals(True)  
@@ -269,8 +270,7 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     """
     Initialize parameter node with default settings.
     """
-    parameterNode.SetParameter("PatientIndex", '-1')
-    parameterNode.SetParameter("NumberOfPatients", str(self.getPatientDirectories().__len__()))
+    self.patientIndex = -1
  
 
   def run(self, inputVolume, outputVolume):
@@ -303,6 +303,9 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
       return os.listdir(os.path.join(baseDir, 'patients'))
     return []
 
+  def numberOfPatients(self):
+    return self.getPatientDirectories().__len__()
+
   def findSeries(self, studySHIndex, id, nameSearch, nameSearch2='', nodeType='vtkMRMLScalarVolumeNode'):
     seriesIds = vtk.vtkIdList()
     shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
@@ -332,126 +335,36 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
       self.getParameterNode().SetNodeReferenceID(name, node.GetID())
     return node
 
-  def patientIndex(self, hierarchyIndex):
-    shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-    if shNode.GetItemLevel(hierarchyIndex) == 'Patient':
-      return hierarchyIndex
-    else:
-      return shNode.GetItemAncestorAtLevel(hierarchyIndex, 'Patient')
-
   def currentPatientIndex(self):
-    patientIndex = self.getParameterNode().GetParameter("PatientIndex")
-    if patientIndex is None or str(patientIndex) == '':
-      return -1
-    return int(patientIndex)
-
-  def numberOfPatients(self):
-    return int(self.getParameterNode().GetParameter("NumberOfPatients"))
+    return self.patientIndex
 
   def nextPatient(self):
-    nextPatientIndex = self.currentPatientIndex() + 1
-    numOfPatients = self.numberOfPatients()
-    if numOfPatients <= 0 or nextPatientIndex >= numOfPatients:
-      return
-
-    self.setPatient(nextPatientIndex)
+    logging.info('nextPatient()')
+    self.setPatient(self.currentPatientIndex() + 1)
   
-
   def prevPatient(self):
-    nextPatientIndex = self.currentPatientIndex() - 1 
-    if self.numberOfPatients() <= 0 or nextPatientIndex < 0:
-      return
+    self.setPatient(self.currentPatientIndex() - 1)
 
-    self.setPatient(nextPatientIndex)
-
-  def setPatient(self, patientIndex):
-    parameterNode = self.getParameterNode()
-    slicer.mrmlScene.Clear(0)
+  def setPatient(self, newPatientIndex):
+    logging.info('setPatient ' + str(newPatientIndex))
+    
     patientDirs = self.getPatientDirectories()
-    if patientIndex < 0 or patientIndex >= patientDirs.__len__() or self.currentPatientIndex() == newPatientIndex:
+    if newPatientIndex < 0 or newPatientIndex >= self.numberOfPatients() or self.currentPatientIndex() == newPatientIndex:
       return False
 
-    patientPath = patientDirs[patientIndex]
+    #parameterNode = self.getParameterNode()
+    #slicer.mrmlScene.Clear(0)s
+
+    self.patientIndex = newPatientIndex
+
+    patientPath = patientDirs[newPatientIndex]
 
     volumes = os.listdir(patientPath)
 
     for v in volumes:
       slicer.util.loadVolume(v)
-    shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-    
-    parameterNode.SetParameter("PatientIndex", str(patientIndex))
-
-    studyIds = vtk.vtkIdList()
-    shNode.GetItemChildren(newPatientIndex, studyIds)
-    if studyIds.GetNumberOfIds() <= 0:
-      return False
-    studyId = studyIds.GetId(0)
-    parameterNode.SetParameter("StudyIndex", str(studyId))
-    if not (self.findSeries(studyId, 't2', 'T2W', nameSearch2='tra') and self.findSeries(studyId, 'adc', 'ADC') and self.findSeries(studyId, 'b800', 'b 800')):
-      return False
-    if not self.findSeries(studyId, 'b0', 'b0'):
-      calculatedB0 = self.virtualB0Calc(self.getNode("adc"), self.getNode('b800'), self.getNode('t2'))
-    if not self.findSeries(studyId, 'segmentation', 'segmentation', nodeType='vtkMRMLSegmentationNode'):
-      segmentationNode = self.getOrCreateNode('segmentation', className = 'vtkMRMLSegmentationNode')
-      segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(self.getNode('t2'))
-      lymphNodeSeg = slicer.vtkSegment()
-      lymphNodeSeg.SetName('Lymph node')
-      lymphNodeSeg.SetColor(0.2, 0.9, 0.1)
-      segmentationNode.GetSegmentation().AddSegment(lymphNodeSeg)
     
     return True
-
-  def resizeVolume(self, sourceNode, targetNode, name):
-    resultNode = self.getOrCreateNode(name)
-
-    parameters = {
-      'inputVolume' : sourceNode.GetID(),
-      'referenceVolume' : targetNode.GetID(),
-      'outputVolume' : resultNode.GetID()
-    }
-    cliNode = slicer.cli.runSync(slicer.modules.resamplescalarvectordwivolume, None, parameters, update_display=False)
-    return resultNode
-
-  def transformVolume(self, sourceNode, targetNode, transformNode, name):
-    resultNode = self.getOrCreateNode(name)
-
-    parameters = {
-      'inputVolume' : sourceNode.GetID(),
-      'referenceVolume' : targetNode.GetID(),
-      'outputVolume' : resultNode.GetID(),
-      'transformationFile' : transformNode.GetID()
-    }
-    cliNode = slicer.cli.runSync(slicer.modules.resamplescalarvectordwivolume, None, parameters, update_display=False)
-    return resultNode
-
-
-
- 
-  def elastixRegister(self):
-    parameterNode = self.getParameterNode()
-    t2Node = parameterNode.GetNodeReference("t2")
-    b0Node = parameterNode.GetNodeReference("b0")
-    if b0Node is None:
-      self.virtualB0()
-      b0Node = parameterNode.GetNodeReference("b0")
-      if b0Node is None:
-        return
-
-    b0RegNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-    b0RegNode.SetName('b0 reg')
-    b0TransformNode = self.getOrCreateNode('b0 transform', "vtkMRMLTransformNode")
-
-    slicer.modules.ElastixWidget.logic.registerVolumes(t2Node, b0Node,
-      ['Rigid.txt', 'Deformable.txt'],
-      outputVolumeNode = b0RegNode,
-      outputTransformNode = b0TransformNode)
-
-    adcReg = self.transformVolume(parameterNode.GetNodeReference("adc"), t2Node, b0TransformNode, 'ADC reg')
-    b800Reg = self.transformVolume(parameterNode.GetNodeReference("b800"), t2Node, b0TransformNode, 'b800 reg')
-
-    parameterNode.SetNodeReferenceID("adc reg", adcReg.GetID())
-    parameterNode.SetNodeReferenceID("b800 reg", b800Reg.GetID())
-
 
 
 #
