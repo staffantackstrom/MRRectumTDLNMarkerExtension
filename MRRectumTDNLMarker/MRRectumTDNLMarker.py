@@ -73,7 +73,7 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     self.tdnlMarkerToolbar = slicer.util.mainWindow().addToolBar('TDNLMarker')
     self.patientSelectionComboBox = slicer.qMRMLSubjectHierarchyComboBox()
     self.patientSelectionComboBox.setMRMLScene(slicer.mrmlScene)
-    self.patientSelectionComboBox.setAttributeFilter('Level', 'Patient')
+    #self.patientSelectionComboBox.setAttributeFilter('Level', 'Patient')
     self.prevPatientToolbarButton = qt.QPushButton("Prev pat")
     self.nextPatientToolbarButton = qt.QPushButton("Next pat")
     self.tdnlMarkerToolbar.addWidget(self.patientSelectionComboBox)
@@ -270,7 +270,7 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     Initialize parameter node with default settings.
     """
     parameterNode.SetParameter("PatientIndex", '-1')
-    parameterNode.SetParameters("NumberOfPatients", self.getPatientDirectories().__len__())
+    parameterNode.SetParameter("NumberOfPatients", str(self.getPatientDirectories().__len__()))
  
 
   def run(self, inputVolume, outputVolume):
@@ -298,8 +298,10 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     logging.info('Processing completed')
 
   def getPatientDirectories(self):
-    patientDir = "C:/Development/Rectum/nifti"
-    return os.listdir(os.join(patientDir, 'patients'))
+    baseDir = "C:/Development/Rectum/nifti"
+    if os.path.isdir(baseDir):
+      return os.listdir(os.path.join(baseDir, 'patients'))
+    return []
 
   def findSeries(self, studySHIndex, id, nameSearch, nameSearch2='', nodeType='vtkMRMLScalarVolumeNode'):
     seriesIds = vtk.vtkIdList()
@@ -347,8 +349,9 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     return int(self.getParameterNode().GetParameter("NumberOfPatients"))
 
   def nextPatient(self):
-    nextPatientIndex = self.currentPatientIndex() + 1 
-    if numberOfPatients <= 0 or nextPatientIndex >= self.numberOfPatients():
+    nextPatientIndex = self.currentPatientIndex() + 1
+    numOfPatients = self.numberOfPatients()
+    if numOfPatients <= 0 or nextPatientIndex >= numOfPatients:
       return
 
     self.setPatient(nextPatientIndex)
@@ -356,19 +359,27 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
 
   def prevPatient(self):
     nextPatientIndex = self.currentPatientIndex() - 1 
-    if numberOfPatients <= 0 or nextPatientIndex < 0:
+    if self.numberOfPatients() <= 0 or nextPatientIndex < 0:
       return
 
     self.setPatient(nextPatientIndex)
 
-  def setPatient(self, patientSHIndex):
+  def setPatient(self, patientIndex):
     parameterNode = self.getParameterNode()
-
-    shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-    newPatientIndex = self.patientIndex(patientSHIndex)
-    if self.currentPatientIndex() == newPatientIndex:
+    slicer.mrmlScene.Clear(0)
+    patientDirs = self.getPatientDirectories()
+    if patientIndex < 0 or patientIndex >= patientDirs.__len__() or self.currentPatientIndex() == newPatientIndex:
       return False
-    parameterNode.SetParameter("PatientIndex", str(newPatientIndex))
+
+    patientPath = patientDirs[patientIndex]
+
+    volumes = os.listdir(patientPath)
+
+    for v in volumes:
+      slicer.util.loadVolume(v)
+    shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+    
+    parameterNode.SetParameter("PatientIndex", str(patientIndex))
 
     studyIds = vtk.vtkIdList()
     shNode.GetItemChildren(newPatientIndex, studyIds)
