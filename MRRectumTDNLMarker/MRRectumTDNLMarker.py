@@ -74,20 +74,20 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     self.patientSelectionComboBox = slicer.qMRMLSubjectHierarchyComboBox()
     self.patientSelectionComboBox.setMRMLScene(slicer.mrmlScene)
     #self.patientSelectionComboBox.setAttributeFilter('Level', 'Patient')
-    self.prevPatientToolbarButton = qt.QPushButton("Prev pat")
-    self.nextPatientToolbarButton = qt.QPushButton("Next pat")
-    self.tdnlMarkerToolbar.addWidget(self.patientSelectionComboBox)
-    self.tdnlMarkerToolbar.addWidget(self.prevPatientToolbarButton)
-    self.tdnlMarkerToolbar.addWidget(self.nextPatientToolbarButton)
+    #self.prevPatientToolbarButton = qt.QPushButton("Prev pat")
+    #self.nextPatientToolbarButton = qt.QPushButton("Next pat")
+    #self.tdnlMarkerToolbar.addWidget(self.patientSelectionComboBox)
+    #self.tdnlMarkerToolbar.addWidget(self.prevPatientToolbarButton)
+    #self.tdnlMarkerToolbar.addWidget(self.nextPatientToolbarButton)
 
     self.setParameterNode(self.logic.getParameterNode())
 
     self.ui.patientTreeView.connect("currentItemChanged(vtkIdType)", self.logic.setPatient)
-    #self.ui.registerButton.connect("pressed()", self.logic.elastixRegister)
-    self.ui.registerButton.connect("pressed()", self.logic.nextPatient)
-    self.patientSelectionComboBox.connect("currentItemChanged(vtkIdType)", self.logic.setPatient)
-    self.prevPatientToolbarButton.connect("pressed()", self.logic.prevPatient)
-    self.nextPatientToolbarButton.connect("pressed()", self.logic.nextPatient)
+    self.ui.prevPatientButton.connect("pressed()", self.logic.prevPatient)
+    self.ui.nextPatientButton.connect("pressed()", self.logic.nextPatient)
+    #self.patientSelectionComboBox.connect("currentItemChanged(vtkIdType)", self.logic.setPatient)
+    #self.prevPatientToolbarButton.connect("pressed()", self.logic.prevPatient)
+    #self.nextPatientToolbarButton.connect("pressed()", self.logic.nextPatient)
 
     self.customLayoutId = 1031
   
@@ -104,7 +104,7 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
             </view>
           </item>
           <item splitSize="500">
-            <view class="vtkMRMLSliceNode" singletontag="Diffusion">
+            <view class="vtkMRMLSliceNode" singletontag="RU">
               <property name="orientation" action="default">Axial</property>
               <property name="viewlabel" action="default">D</property>
               <property name="viewcolor" action="default">#EDD54C</property>
@@ -116,14 +116,14 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         <layout type="horizontal" split="true">
           <item splitSize="500">
             <view class="vtkMRMLSliceNode" singletontag="Green">
-              <property name="orientation" action="default">Axial</property>
+              <property name="orientation" action="default">Coronal</property>
               <property name="viewlabel" action="default">G</property>
               <property name="viewcolor" action="default">#F34A32</property>
             </view>
           </item>
           <item splitSize="500">
             <view class="vtkMRMLSliceNode" singletontag="Yellow">
-              <property name="orientation" action="default">Axial</property>
+              <property name="orientation" action="default">Sagittal</property>
               <property name="viewlabel" action="default">Y</property>
               <property name="viewcolor" action="default">#EDD54D</property>
             </view>
@@ -178,24 +178,33 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
         continue
       return compNode
 
-  def setDefaultMasterVolumeNodeID(self, backgroundID, diffusionVolumeID, segmentationNodeID, adcNodeID):
-    compositeNode = self.getCompositeNode('Red')
-    compositeNode.SetBackgroundVolumeID(backgroundID)
-    compositeNode.SetLinkedControl(True)
-    layoutManager = slicer.app.layoutManager()
-    layoutManager.sliceWidget('Red').findChild(slicer.qMRMLSegmentSelectorWidget).setCurrentNodeID(logic.getNode('segmentation').GetID()) #segmentationNodeID)
-    self.getCompositeNode('Diffusion').SetBackgroundVolumeID(logic.getNode('b800').GetID()) #diffusionVolumeID)
-    self.getCompositeNode('Diffusion').SetLinkedControl(True)
-    backgroundNode = slicer.mrmlScene.GetNodeByID(backgroundID)
-    layoutManager.sliceWidget('Red').mrmlSliceNode().RotateToVolumePlane(backgroundNode)
-    layoutManager.sliceWidget('Diffusion').mrmlSliceNode().RotateToVolumePlane(backgroundNode)
+  def showVolume(self, compositeNodeName, volumeName):
+    compositeNode = self.getCompositeNode(compositeNodeName)
+    volumeNode = self.logic.getNode(volumeName)
+    compositeNode.SetBackgroundVolumeID(volumeNode.GetID())
 
-    self.getCompositeNode('Yellow').SetBackgroundVolumeID(logic.getNode('adc').GetID())
-    self.getCompositeNode('Green').SetBackgroundVolumeID(logic.getNode('b800').GetID())
-    layoutManager.sliceWidget('Yellow').mrmlSliceNode().RotateToVolumePlane(backgroundNode)
-    layoutManager.sliceWidget('Green').mrmlSliceNode().RotateToVolumePlane(backgroundNode)
+    slicer.app.layoutManager().sliceWidget(compositeNodeName).mrmlSliceNode().RotateToVolumePlane(volumeNode)
+
+  def showVolumes(self):
+    #compositeNode = self.getCompositeNode('Red')
+    #compositeNode.SetBackgroundVolumeID(backgroundID)
+    if self.logic.getParameterNode().GetParameter('PatientIndex') == '':
+      return
+    layoutManager = slicer.app.layoutManager()
+    #layoutManager.sliceWidget('Red').findChild(slicer.qMRMLSegmentSelectorWidget).setCurrentNodeID(logic.getNode('segmentation').GetID())
+    
+    backgroundNode = self.logic.getNode('t2tra1')
+    #slicer.mrmlScene.GetNodeByID(backgroundID)
+    
+    self.showVolume('Red', 't2tra1')
+    self.showVolume('RU', 't2tra2')
+    self.showVolume('Green', 't2cor')
+    self.showVolume('Yellow', 't2sag')
+
+    self.getCompositeNode('Red').SetLinkedControl(True)
     self.getCompositeNode('Yellow').SetLinkedControl(True)
     self.getCompositeNode('Green').SetLinkedControl(True)
+    self.getCompositeNode('RU').SetLinkedControl(True)
 
   def setPatientSegmentationsVisible(self, patientSHIndex):
     numOfSegmentationNodes = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLSegmentationNode')
@@ -211,7 +220,7 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
     self.updateGUIFromParameterNode()
     
-    self.setDefaultMasterVolumeNodeID(selectedVolume.GetID(), diffusionVolume.GetID(), patientsSegmentation.GetID(), adcNode.GetID())
+    self.showVolumes()
 
     self.setPatientSegmentationsVisible(newPatientIndex)
 
@@ -228,6 +237,7 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     This method is called whenever parameter node is changed.
     The module GUI is updated to show the current state of the parameter node.
     """
+    #logging.info('updateGUIFromParameterNode')
 
     slicer.app.layoutManager().setLayout(1031)
 
@@ -251,6 +261,8 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     segmentationNodeId = str(self._parameterNode.GetNodeReferenceID("SegmentationNode"))
     if segmentationNodeId != "" and hasattr(slicer.modules, 'SegmentEditorWidget'):
       slicer.modules.SegmentEditorWidget.editor.setSegmentationNodeID(segmentationNodeId)
+
+    self.showVolumes()
     #slicer.modules.SegmentEditorWidget.editor.blockSignals(wasBlocked)
 #
 # MRRectumTDNLMarkerLogic
@@ -271,6 +283,7 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     Initialize parameter node with default settings.
     """
     self.patientIndex = -1
+    parameterNode.SetParameter('PatientIndex', '')
  
 
   def run(self, inputVolume, outputVolume):
@@ -297,8 +310,11 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
 
     logging.info('Processing completed')
 
+  def getBaseDir(self):
+    return "C:/Development/Rectum/nifti"
+
   def getPatientDirectories(self):
-    baseDir = "C:/Development/Rectum/nifti"
+    baseDir = self.getBaseDir()
     if os.path.isdir(baseDir):
       return os.listdir(os.path.join(baseDir, 'patients'))
     return []
@@ -339,31 +355,33 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     return self.patientIndex
 
   def nextPatient(self):
-    logging.info('nextPatient()')
     self.setPatient(self.currentPatientIndex() + 1)
   
   def prevPatient(self):
     self.setPatient(self.currentPatientIndex() - 1)
 
   def setPatient(self, newPatientIndex):
-    logging.info('setPatient ' + str(newPatientIndex))
+    logging.info('setPatient ' + str(newPatientIndex) + " current patient " + str(self.patientIndex))
     
     patientDirs = self.getPatientDirectories()
     if newPatientIndex < 0 or newPatientIndex >= self.numberOfPatients() or self.currentPatientIndex() == newPatientIndex:
       return False
 
-    #parameterNode = self.getParameterNode()
-    #slicer.mrmlScene.Clear(0)s
+    slicer.mrmlScene.Clear(0)
 
+    parameterNode = self.getParameterNode()
+    parameterNode.SetParameter('PatientIndex', '')
     self.patientIndex = newPatientIndex
 
-    patientPath = patientDirs[newPatientIndex]
+    patientPath = os.path.join(self.getBaseDir(), 'patients', patientDirs[newPatientIndex])
 
     volumes = os.listdir(patientPath)
 
     for v in volumes:
-      slicer.util.loadVolume(v)
+      node = slicer.util.loadVolume(os.path.join(patientPath, v))
+      parameterNode.SetNodeReferenceID(node.GetName(), node.GetID())
     
+    parameterNode.SetParameter('PatientIndex', str(self.patientIndex))
     return True
 
 

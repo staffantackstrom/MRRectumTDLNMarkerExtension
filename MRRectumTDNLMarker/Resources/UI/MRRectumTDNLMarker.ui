@@ -14,14 +14,14 @@
    <item row="0" column="0">
     <widget class="QLabel" name="label_5">
      <property name="text">
-      <string>Patient selection:</string>
+      <string>Series:</string>
      </property>
     </widget>
    </item>
    <item row="1" column="0" colspan="2">
     <widget class="qMRMLSubjectHierarchyTreeView" name="patientTreeView"/>
    </item>
-   <item row="3" column="0">
+   <item row="4" column="0">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -34,10 +34,17 @@
      </property>
     </spacer>
    </item>
-   <item row="2" column="0">
-    <widget class="QPushButton" name="registerButton">
+   <item row="3" column="0">
+    <widget class="QPushButton" name="prevPatientButton">
      <property name="text">
-      <string>Register</string>
+      <string>Prev patient</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QPushButton" name="nextPatientButton">
+     <property name="text">
+      <string>Next patient</string>
      </property>
     </widget>
    </item>
