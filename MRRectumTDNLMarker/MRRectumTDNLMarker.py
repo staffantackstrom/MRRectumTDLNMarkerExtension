@@ -85,6 +85,8 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     self.ui.patientTreeView.connect("currentItemChanged(vtkIdType)", self.logic.setPatient)
     self.ui.prevPatientButton.connect("pressed()", self.logic.prevPatient)
     self.ui.nextPatientButton.connect("pressed()", self.logic.nextPatient)
+    self.ui.addTdButton.connect("pressed()", self.addTdMarker)
+    self.ui.addLnButton.connect("pressed()", self.addLnMarker)
     #self.patientSelectionComboBox.connect("currentItemChanged(vtkIdType)", self.logic.setPatient)
     #self.prevPatientToolbarButton.connect("pressed()", self.logic.prevPatient)
     #self.nextPatientToolbarButton.connect("pressed()", self.logic.nextPatient)
@@ -206,13 +208,13 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     self.getCompositeNode('Green').SetLinkedControl(True)
     self.getCompositeNode('RU').SetLinkedControl(True)
 
-  def setPatientSegmentationsVisible(self, patientSHIndex):
-    numOfSegmentationNodes = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLSegmentationNode')
-    for i in range(numOfSegmentationNodes):
-      segNode = slicer.mrmlScene.GetNthNodeByClass(i, 'vtkMRMLSegmentationNode')
-      shId = shNode.GetItemByDataNode(segNode)
-      if segNode.GetDisplayNode():
-        segNode.GetDisplayNode().SetVisibility(self.patientIndex(shId) == newPatientIndex)
+  #def setPatientSegmentationsVisible(self, patientSHIndex):
+  #  numOfSegmentationNodes = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLSegmentationNode')
+  #  for i in range(numOfSegmentationNodes):
+  #    segNode = slicer.mrmlScene.GetNthNodeByClass(i, 'vtkMRMLSegmentationNode')
+  #    shId = shNode.GetItemByDataNode(segNode)
+  #    if segNode.GetDisplayNode():
+  #      segNode.GetDisplayNode().SetVisibility(self.patientIndex(shId) == newPatientIndex)
 
   def setPatient(self, hierarchyIndex):
     #if not (self.logic.setPatient(self.logic.patientIndex(hierarchyIndex))):
@@ -222,14 +224,14 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     
     self.showVolumes()
 
-    self.setPatientSegmentationsVisible(newPatientIndex)
+    #self.setPatientSegmentationsVisible(newPatientIndex)
 
-    layoutManager = slicer.app.layoutManager()
+    #layoutManager = slicer.app.layoutManager()
     #layoutManager.sliceWidget('Diffusion').sliceLogic().FitSliceToAll()
     #fov = layoutManager.sliceWidget('Diffusion').sliceController().mrmlSliceNode().GetFieldOfView()
     #layoutManager.sliceWidget('Red').sliceController().setSliceFOV(min(fov[0], fov[1]))
-    slicer.app.layoutManager().sliceWidget('Red').sliceController().setSliceFOV(300)
-    layoutManager.sliceWidget('Diffusion').sliceController().setSliceFOV(300)
+    #slicer.app.layoutManager().sliceWidget('Red').sliceController().setSliceFOV(300)
+    #layoutManager.sliceWidget('Diffusion').sliceController().setSliceFOV(300)
 
 
   def updateGUIFromParameterNode(self, caller=None, event=None):
@@ -264,6 +266,22 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
 
     self.showVolumes()
     #slicer.modules.SegmentEditorWidget.editor.blockSignals(wasBlocked)
+  
+  def addTdMarker(self):
+    self.addMarker('TD')
+
+  def addLnMarker(self):
+    self.addMarker('LN')
+
+  def addMarker(self, markerText):
+    interactionNode = slicer.app.applicationLogic().GetInteractionNode()
+    selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+    selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
+    fiducialNode = slicer.vtkMRMLMarkupsFiducialNode()
+    slicer.mrmlScene.AddNode(fiducialNode)
+    fiducialNode.CreateDefaultDisplayNodes() 
+    selectionNode.SetActivePlaceNodeID(fiducialNode.GetID())
+    interactionNode.SetCurrentInteractionMode(interactionNode.Place)
 #
 # MRRectumTDNLMarkerLogic
 #
