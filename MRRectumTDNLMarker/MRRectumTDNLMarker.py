@@ -192,10 +192,10 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     #compositeNode.SetBackgroundVolumeID(backgroundID)
     if self.logic.getParameterNode().GetParameter('PatientIndex') == '':
       return
-    layoutManager = slicer.app.layoutManager()
+    #layoutManager = slicer.app.layoutManager()
     #layoutManager.sliceWidget('Red').findChild(slicer.qMRMLSegmentSelectorWidget).setCurrentNodeID(logic.getNode('segmentation').GetID())
     
-    backgroundNode = self.logic.getNode('t2tra1')
+    #backgroundNode = self.logic.getNode('t2tra1')
     #slicer.mrmlScene.GetNodeByID(backgroundID)
     
     self.showVolume('Red', 't2tra1')
@@ -204,9 +204,9 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     self.showVolume('Yellow', 't2sag')
 
     self.getCompositeNode('Red').SetLinkedControl(True)
-    self.getCompositeNode('Yellow').SetLinkedControl(True)
-    self.getCompositeNode('Green').SetLinkedControl(True)
-    self.getCompositeNode('RU').SetLinkedControl(True)
+    #self.getCompositeNode('Yellow').SetLinkedControl(True)
+    #self.getCompositeNode('Green').SetLinkedControl(True)
+    #self.getCompositeNode('RU').SetLinkedControl(True)
 
   #def setPatientSegmentationsVisible(self, patientSHIndex):
   #  numOfSegmentationNodes = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLSegmentationNode')
@@ -277,9 +277,10 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     interactionNode = slicer.app.applicationLogic().GetInteractionNode()
     selectionNode = slicer.app.applicationLogic().GetSelectionNode()
     selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
-    fiducialNode = slicer.vtkMRMLMarkupsFiducialNode()
+    #fiducialNode = slicer.vtkMRMLMarkupsFiducialNode()
+    fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", markerText)
     slicer.mrmlScene.AddNode(fiducialNode)
-    fiducialNode.CreateDefaultDisplayNodes() 
+    #fiducialNode.CreateDefaultDisplayNodes() 
     selectionNode.SetActivePlaceNodeID(fiducialNode.GetID())
     interactionNode.SetCurrentInteractionMode(interactionNode.Place)
 #
