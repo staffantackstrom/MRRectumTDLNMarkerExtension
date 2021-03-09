@@ -186,27 +186,18 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     compositeNode.SetBackgroundVolumeID(volumeNode.GetID())
 
     slicer.app.layoutManager().sliceWidget(compositeNodeName).mrmlSliceNode().RotateToVolumePlane(volumeNode)
+    compositeNode.SetLinkedControl(True)
 
   def showVolumes(self):
-    #compositeNode = self.getCompositeNode('Red')
-    #compositeNode.SetBackgroundVolumeID(backgroundID)
     if self.logic.getParameterNode().GetParameter('PatientIndex') == '':
       return
     #layoutManager = slicer.app.layoutManager()
     #layoutManager.sliceWidget('Red').findChild(slicer.qMRMLSegmentSelectorWidget).setCurrentNodeID(logic.getNode('segmentation').GetID())
     
-    #backgroundNode = self.logic.getNode('t2tra1')
-    #slicer.mrmlScene.GetNodeByID(backgroundID)
-    
     self.showVolume('Red', 't2tra1')
     self.showVolume('RU', 't2tra2')
     self.showVolume('Green', 't2cor')
     self.showVolume('Yellow', 't2sag')
-
-    self.getCompositeNode('Red').SetLinkedControl(True)
-    #self.getCompositeNode('Yellow').SetLinkedControl(True)
-    #self.getCompositeNode('Green').SetLinkedControl(True)
-    #self.getCompositeNode('RU').SetLinkedControl(True)
 
   #def setPatientSegmentationsVisible(self, patientSHIndex):
   #  numOfSegmentationNodes = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLSegmentationNode')
@@ -268,19 +259,16 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     #slicer.modules.SegmentEditorWidget.editor.blockSignals(wasBlocked)
   
   def addTdMarker(self):
-    self.addMarker('TD')
+    self.addMarker('TDFiducialNode')
 
   def addLnMarker(self):
-    self.addMarker('LN')
+    self.addMarker('LNFiducialNode')
 
-  def addMarker(self, markerText):
+  def addMarker(self, fiducialNodeName):
     interactionNode = slicer.app.applicationLogic().GetInteractionNode()
     selectionNode = slicer.app.applicationLogic().GetSelectionNode()
     selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
-    #fiducialNode = slicer.vtkMRMLMarkupsFiducialNode()
-    fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", markerText)
-    slicer.mrmlScene.AddNode(fiducialNode)
-    #fiducialNode.CreateDefaultDisplayNodes() 
+    fiducialNode = self.logic.getNode(fiducialNodeName)
     selectionNode.SetActivePlaceNodeID(fiducialNode.GetID())
     interactionNode.SetCurrentInteractionMode(interactionNode.Place)
 #
@@ -400,6 +388,13 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
       node = slicer.util.loadVolume(os.path.join(patientPath, v))
       parameterNode.SetNodeReferenceID(node.GetName(), node.GetID())
     
+    fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "TDFiducialNode")
+    parameterNode.SetNodeReferenceID(fiducialNode.GetName(), fiducialNode.GetID())
+    slicer.mrmlScene.AddNode(fiducialNode)
+    fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "LNFiducialNode")
+    parameterNode.SetNodeReferenceID(fiducialNode.GetName(), fiducialNode.GetID())
+    slicer.mrmlScene.AddNode(fiducialNode)
+
     parameterNode.SetParameter('PatientIndex', str(self.patientIndex))
     return True
 
