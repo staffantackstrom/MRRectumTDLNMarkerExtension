@@ -329,9 +329,16 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
 
   def getFiducialFilePath(self, labelStr):
     baseDir = self.getBaseDir()
-    if os.path.isdir(baseDir):
-      return os.path.join(baseDir, 'markup', self.getReviewer(), self.currentPatientId() + '_' + labelStr)
-    return ''
+    patientId = self.currentPatientId()
+    logging.info('getFiducialPath ' + patientId)
+    if not os.path.isdir(baseDir):
+      logging('Directory ' + baseDir + ' does not exist.')
+      return ''
+
+    markupDir = os.path.join(baseDir, 'markup', self.getReviewer())
+    if not os.path.isdir(markupDir):
+      os.makedirs(markupDir)
+    return os.path.join(markupDir, (patientId + '_' + labelStr))
 
   def getPatientDirectories(self):
     baseDir = self.getBaseDir()
@@ -371,8 +378,8 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
       self.getParameterNode().SetNodeReferenceID(name, node.GetID())
     return node
 
-  def currentPatientId():
-    self.getParameterNode().GetParameter('PatientId')
+  def currentPatientId(self):
+    return self.getParameterNode().GetParameter('PatientId')
 
   def currentPatientIndex(self):
     return self.patientIndex
@@ -418,14 +425,16 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
 
   def saveFiducials(self):
     fid = self.getNode("TDFiducialNode")
-    sn = fid.CreateDefaultStorageNode()
+    sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialStorageNode") 
     sn.SetFileName(self.getFiducialFilePath('TD'))
     sn.WriteData(fid)
+    slicer.mrmlScene.RemoveNode(sn)
 
     fid = self.getNode("LNFiducialNode")
-    sn = fid.CreateDefaultStorageNode()
+    sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialStorageNode") 
     sn.SetFileName(self.getFiducialFilePath('LN'))
     sn.WriteData(fid)
+    slicer.mrmlScene.RemoveNode(sn)
 
 #
 # MRRectumTDNLMarkerTest
