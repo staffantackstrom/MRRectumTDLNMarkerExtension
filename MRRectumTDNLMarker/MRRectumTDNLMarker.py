@@ -87,6 +87,7 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     self.ui.nextPatientButton.connect("pressed()", self.logic.nextPatient)
     self.ui.addTdButton.connect("pressed()", self.addTdMarker)
     self.ui.addLnButton.connect("pressed()", self.addLnMarker)
+    self.ui.saveButton.connect("pressed()", self.logic.saveFiducials)
     #self.patientSelectionComboBox.connect("currentItemChanged(vtkIdType)", self.logic.setPatient)
     #self.prevPatientToolbarButton.connect("pressed()", self.logic.prevPatient)
     #self.nextPatientToolbarButton.connect("pressed()", self.logic.nextPatient)
@@ -317,8 +318,20 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
 
     logging.info('Processing completed')
 
+  def getMarkupLabels(self):
+    return ['TD', 'LN']
+
   def getBaseDir(self):
-    return "C:/Development/Rectum/nifti"
+    return 'C:/Development/Rectum/nifti'
+
+  def getReviewer(self):
+    return 'ST'
+
+  def getFiducialFilePath(self, labelStr):
+    baseDir = self.getBaseDir()
+    if os.path.isdir(baseDir):
+      return os.path.join(baseDir, 'markup', self.getReviewer(), self.currentPatientId() + '_' + labelStr)
+    return ''
 
   def getPatientDirectories(self):
     baseDir = self.getBaseDir()
@@ -358,6 +371,9 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
       self.getParameterNode().SetNodeReferenceID(name, node.GetID())
     return node
 
+  def currentPatientId():
+    self.getParameterNode().GetParameter('PatientId')
+
   def currentPatientIndex(self):
     return self.patientIndex
 
@@ -379,8 +395,9 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     parameterNode = self.getParameterNode()
     parameterNode.SetParameter('PatientIndex', '')
     self.patientIndex = newPatientIndex
+    patientId = patientDirs[newPatientIndex]
 
-    patientPath = os.path.join(self.getBaseDir(), 'patients', patientDirs[newPatientIndex])
+    patientPath = os.path.join(self.getBaseDir(), 'patients', patientId)
 
     volumes = os.listdir(patientPath)
 
@@ -395,9 +412,18 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     parameterNode.SetNodeReferenceID(fiducialNode.GetName(), fiducialNode.GetID())
     slicer.mrmlScene.AddNode(fiducialNode)
 
+    parameterNode.SetParameter('PatientId', patientId)
     parameterNode.SetParameter('PatientIndex', str(self.patientIndex))
     return True
 
+  def saveFiducials(self):
+    sn = fid.CreateDefaultStorageNode()
+
+    sn.SetFileName(self.getFiducialFilePath('TD'))
+    sn.WriteData(self.getNode("TDFiducialNode"))
+
+    sn.SetFileName(self.getFiducialFilePath('LN'))
+    sn.WriteData(self.getNode("LNFiducialNode"))
 
 #
 # MRRectumTDNLMarkerTest
