@@ -417,13 +417,15 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     return True
 
   def saveFiducials(self):
+    fid = self.getNode("TDFiducialNode")
     sn = fid.CreateDefaultStorageNode()
-
     sn.SetFileName(self.getFiducialFilePath('TD'))
-    sn.WriteData(self.getNode("TDFiducialNode"))
+    sn.WriteData(fid)
 
+    fid = self.getNode("LNFiducialNode")
+    sn = fid.CreateDefaultStorageNode()
     sn.SetFileName(self.getFiducialFilePath('LN'))
-    sn.WriteData(self.getNode("LNFiducialNode"))
+    sn.WriteData(fid)
 
 #
 # MRRectumTDNLMarkerTest
