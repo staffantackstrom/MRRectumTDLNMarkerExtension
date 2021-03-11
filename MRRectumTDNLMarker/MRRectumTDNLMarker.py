@@ -322,7 +322,15 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     return ['TD', 'LN']
 
   def getBaseDir(self):
-    return 'C:/Development/Rectum/nifti'
+    locationFilePath = os.path.expanduser('~/tdnl_lib.location')
+    if not os.path.isfile(locationFilePath):
+      logging.error('Expected file tdnl_lib.location in home directory')
+      return ''
+    
+    locationFile = open(locationFilePath, 'r')
+    location = locationFile.readline().rstrip()
+    logging.info('Path to patient directory is ' + location)
+    return location
 
   def getReviewer(self):
     return 'ST'
@@ -332,7 +340,7 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     patientId = self.currentPatientId()
     logging.info('getFiducialPath ' + patientId)
     if not os.path.isdir(baseDir):
-      logging('Directory ' + baseDir + ' does not exist.')
+      logging.info('Directory ' + baseDir + ' does not exist.')
       return ''
 
     markupDir = os.path.join(baseDir, 'markup', self.getReviewer())
@@ -343,7 +351,16 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   def getPatientDirectories(self):
     baseDir = self.getBaseDir()
     if os.path.isdir(baseDir):
-      return os.listdir(os.path.join(baseDir, 'patients'))
+      logging.info(baseDir + ' exists')
+      patientsDir = os.path.join(baseDir, 'patients')
+      if os.path.isdir(patientsDir):
+        patientDirectories = os.listdir(patientsDir)
+        logging.info('Found patient directory with ' + str(patientDirectories.__len__()) + ' entries')
+        return [d for d in patientDirectories if os.path.isdir(os.path.join(patientsDir, d))]
+      else:
+        logging.error('Not a directory: ' + patientsDir)
+    else:
+      logging.error('Unsuccessful at finding patient directories ' + baseDir)
     return []
 
   def numberOfPatients(self):
