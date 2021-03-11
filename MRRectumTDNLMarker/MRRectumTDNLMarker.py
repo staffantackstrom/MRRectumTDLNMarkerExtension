@@ -260,10 +260,10 @@ class MRRectumTDNLMarkerWidget(ScriptedLoadableModuleWidget, VTKObservationMixin
     #slicer.modules.SegmentEditorWidget.editor.blockSignals(wasBlocked)
   
   def addTdMarker(self):
-    self.addMarker('TDFiducialNode')
+    self.addMarker('TD')
 
   def addLnMarker(self):
-    self.addMarker('LNFiducialNode')
+    self.addMarker('LN')
 
   def addMarker(self, fiducialNodeName):
     interactionNode = slicer.app.applicationLogic().GetInteractionNode()
@@ -412,29 +412,43 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
       node = slicer.util.loadVolume(os.path.join(patientPath, v))
       parameterNode.SetNodeReferenceID(node.GetName(), node.GetID())
     
-    fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "TDFiducialNode")
-    parameterNode.SetNodeReferenceID(fiducialNode.GetName(), fiducialNode.GetID())
-    slicer.mrmlScene.AddNode(fiducialNode)
-    fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "LNFiducialNode")
-    parameterNode.SetNodeReferenceID(fiducialNode.GetName(), fiducialNode.GetID())
-    slicer.mrmlScene.AddNode(fiducialNode)
-
     parameterNode.SetParameter('PatientId', patientId)
+
+    self.readFiducials()
+    #for label in self.getMarkupLabels():
+    #  fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", label)
+    #  parameterNode.SetNodeReferenceID(label, fiducialNode.GetID())
+    #  slicer.mrmlScene.AddNode(fiducialNode)
+    
+    
+    #fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "LNFiducialNode")
+    #parameterNode.SetNodeReferenceID(fiducialNode.GetName(), fiducialNode.GetID())
+    #slicer.mrmlScene.AddNode(fiducialNode)
+
+    
     parameterNode.SetParameter('PatientIndex', str(self.patientIndex))
     return True
 
   def saveFiducials(self):
-    fid = self.getNode("TDFiducialNode")
-    sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialStorageNode") 
-    sn.SetFileName(self.getFiducialFilePath('TD'))
-    sn.WriteData(fid)
-    slicer.mrmlScene.RemoveNode(sn)
+    for label in self.getMarkupLabels():
+      fid = self.getNode(label)
+      sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialStorageNode") 
+      sn.SetFileName(self.getFiducialFilePath(label))
+      sn.WriteData(fid)
+      slicer.mrmlScene.RemoveNode(sn)
 
-    fid = self.getNode("LNFiducialNode")
-    sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialStorageNode") 
-    sn.SetFileName(self.getFiducialFilePath('LN'))
-    sn.WriteData(fid)
-    slicer.mrmlScene.RemoveNode(sn)
+  def readFiducials(self):
+    parameterNode = self.getParameterNode()
+    for label in self.getMarkupLabels():
+      fid = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", label)
+      sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialStorageNode")
+      path = self.getFiducialFilePath(label)
+      if os.path.isfile(path):
+        sn.SetFileName(path)
+        sn.ReadData(fid)
+      parameterNode.SetNodeReferenceID(label, fid.GetID())
+      slicer.mrmlScene.AddNode(fid)
+      slicer.mrmlScene.RemoveNode(sn)
 
 #
 # MRRectumTDNLMarkerTest
