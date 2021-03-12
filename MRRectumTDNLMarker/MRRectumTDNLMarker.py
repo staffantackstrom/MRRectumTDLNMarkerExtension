@@ -457,7 +457,7 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   def saveFiducials(self):
     for label in self.getMarkupLabels():
       fid = self.getNode(label)
-      sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialStorageNode") 
+      sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsJsonStorageNode") 
       sn.SetFileName(self.getFiducialFilePath(label))
       sn.WriteData(fid)
       slicer.mrmlScene.RemoveNode(sn)
@@ -466,7 +466,7 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     parameterNode = self.getParameterNode()
     for label in self.getMarkupLabels():
       fid = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", label)
-      sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialStorageNode")
+      sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsJsonStorageNode")
       path = self.getFiducialFilePath(label)
       if os.path.isfile(path):
         sn.SetFileName(path)
