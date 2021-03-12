@@ -285,6 +285,10 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
+  def __init__(self):
+    self.baseDir = ''
+    super().__init__()
+
 
   def setDefaultParameters(self, parameterNode):
     """
@@ -322,14 +326,18 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     return ['TD', 'LN']
 
   def getBaseDir(self):
+    if self.baseDir != '':
+      return self.baseDir
     locationFilePath = os.path.expanduser('~/tdnl_lib.location')
     if not os.path.isfile(locationFilePath):
-      logging.error('Expected file tdnl_lib.location in home directory')
+      logging.error('Expected file tdnl_lib.location in home directory: ' + locationFilePath + 
+        ' that is supposed to have one line with the path to the directory containing MR volumes.')
       return ''
     
     locationFile = open(locationFilePath, 'r')
     location = locationFile.readline().rstrip()
     logging.info('Path to patient directory is ' + location)
+    self.baseDir = location
     return location
 
   def getReviewer(self):
@@ -351,11 +359,11 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   def getPatientDirectories(self):
     baseDir = self.getBaseDir()
     if os.path.isdir(baseDir):
-      logging.info(baseDir + ' exists')
+      #logging.info(baseDir + ' exists')
       patientsDir = os.path.join(baseDir, 'patients')
       if os.path.isdir(patientsDir):
         patientDirectories = os.listdir(patientsDir)
-        logging.info('Found patient directory with ' + str(patientDirectories.__len__()) + ' entries')
+        #logging.info('Found patient directory with ' + str(patientDirectories.__len__()) + ' entries')
         return [d for d in patientDirectories if os.path.isdir(os.path.join(patientsDir, d))]
       else:
         logging.error('Not a directory: ' + patientsDir)
