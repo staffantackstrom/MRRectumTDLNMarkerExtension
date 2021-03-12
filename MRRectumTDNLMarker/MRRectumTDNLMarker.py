@@ -363,19 +363,15 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     userMarkupDir = os.path.join(markupBaseDir, currentUser)
     if not os.path.isdir(userMarkupDir):
       os.makedirs(userMarkupDir)
-    otherUsersMarkupDirs = [d for d in os.listdir(userMarkupDir) if d != currentUser]
+    otherUsersMarkupDirs = [d for d in os.listdir(markupBaseDir) if d != currentUser]
     logging.info('Markup directories, found ' + str(otherUsersMarkupDirs.__len__()) + ' others reviewers.')
     return (markupBaseDir, userMarkupDir, otherUsersMarkupDirs)
 
   def getReviewer(self):
     return self.reviewer
 
-  def getFiducialFilePath(self, labelStr):
-    patientId = self.currentPatientId()
-    #markupDir = os.path.join(self.markupBaseDir, self.getReviewer())
-    #if not os.path.isdir(markupDir):
-    #  os.makedirs(markupDir)
-    return os.path.join(self.userMarkupDir, (patientId + '_' + labelStr))
+  def getFiducialFilePath(self, labelStr, user):
+    return os.path.join(os.path.join(self.markupBaseDir, user, (self.currentPatientId() + '_' + labelStr)))
 
   def numberOfPatients(self):
     return self.patientDirectories.__len__()
@@ -447,16 +443,33 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
       slicer.mrmlScene.RemoveNode(sn)
 
   def readFiducials(self):
+    self.readUserFiducials()
+    self.readOtherUsersFiducials()
+
+  def readUserFiducials(self):
     parameterNode = self.getParameterNode()
     for label in self.getMarkupLabels():
-      fid = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", label)
+      fid = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", self.reviewer + '_' + label)
       sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsJsonStorageNode")
-      path = self.getFiducialFilePath(label)
+      path = self.getFiducialFilePath(label, self.reviewer)
       if os.path.isfile(path):
         sn.SetFileName(path)
         sn.ReadData(fid)
-      parameterNode.SetNodeReferenceID(label, fid.GetID())
+      parameterNode.SetNodeReferenceID(fid.GetName(), fid.GetID())
       slicer.mrmlScene.RemoveNode(sn)
+
+  def readOtherUsersFiducials(self):
+    parameterNode = self.getParameterNode()
+    for otherUser in self.otherUsersMarkupDirs:
+      for label in self.getMarkupLabels():
+        fid = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", otherUser + '_' + label)
+        sn = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsJsonStorageNode")
+        path = self.getFiducialFilePath(label, otherUser)
+        if os.path.isfile(path):
+          sn.SetFileName(path)
+          sn.ReadData(fid)
+        parameterNode.SetNodeReferenceID(fid.GetName(), fid.GetID())
+        slicer.mrmlScene.RemoveNode(sn)
 
 #
 # MRRectumTDNLMarkerTest
