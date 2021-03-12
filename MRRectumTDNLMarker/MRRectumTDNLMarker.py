@@ -415,6 +415,8 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   def prevPatient(self):
     self.setPatient(self.currentPatientIndex() - 1)
 
+#[n.GetID() for n in slicer.mrmlScene.GetNodes() if n.GetSingletonTag() is None and 'Fiducial' in n.GetID()]
+
   def setPatient(self, newPatientIndex):
     logging.info('setPatient ' + str(newPatientIndex) + " current patient " + str(self.patientIndex))
     
@@ -440,16 +442,6 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     parameterNode.SetParameter('PatientId', patientId)
 
     self.readFiducials()
-    #for label in self.getMarkupLabels():
-    #  fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", label)
-    #  parameterNode.SetNodeReferenceID(label, fiducialNode.GetID())
-    #  slicer.mrmlScene.AddNode(fiducialNode)
-    
-    
-    #fiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "LNFiducialNode")
-    #parameterNode.SetNodeReferenceID(fiducialNode.GetName(), fiducialNode.GetID())
-    #slicer.mrmlScene.AddNode(fiducialNode)
-
     
     parameterNode.SetParameter('PatientIndex', str(self.patientIndex))
     return True
@@ -472,7 +464,6 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
         sn.SetFileName(path)
         sn.ReadData(fid)
       parameterNode.SetNodeReferenceID(label, fid.GetID())
-      slicer.mrmlScene.AddNode(fid)
       slicer.mrmlScene.RemoveNode(sn)
 
 #
