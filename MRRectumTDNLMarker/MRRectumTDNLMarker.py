@@ -286,9 +286,10 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
   def __init__(self):
-    self.baseDir = ''
+    (self.baseDir, self.reviewer) = self.getInitInfo()
+    (self.patientBaseDir, self.patientDirectories) = self.getPatientDirectories()
+    (self.markupBaseDir, self.userMarkupDir, self.otherUsersMarkupDirs) = self.getMarkupDirectories()
     super().__init__()
-
 
   def setDefaultParameters(self, parameterNode):
     """
@@ -297,7 +298,6 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     self.patientIndex = -1
     parameterNode.SetParameter('PatientIndex', '')
  
-
   def run(self, inputVolume, outputVolume):
     """
     Run the processing algorithm.
@@ -325,68 +325,60 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   def getMarkupLabels(self):
     return ['TD', 'LN']
 
-  def getBaseDir(self):
-    if self.baseDir != '':
-      return self.baseDir
-    locationFilePath = os.path.expanduser('~/tdnl_lib.location')
+  def getInitInfo(self):
+    locationFilePath = os.path.expanduser('~/tdnl.txt')
     if not os.path.isfile(locationFilePath):
-      logging.error('Expected file tdnl_lib.location in home directory: ' + locationFilePath + 
-        ' that is supposed to have one line with the path to the directory containing MR volumes.')
+      logging.error('Expected file tdnl.txt in home directory: ' + locationFilePath + 
+        ' that is supposed to have two lines: One with the path to the directory containing data and ' +
+        ' one with your name initials.')
       return ''
     
     locationFile = open(locationFilePath, 'r')
-    location = locationFile.readline().rstrip()
-    logging.info('Path to patient directory is ' + location)
-    self.baseDir = location
-    return location
+    baseDir = locationFile.readline().rstrip()
+    if os.path.isdir(baseDir):
+      logging.info('Base directory is ' + baseDir)
+    else:
+      logging.error('Base directory doen not exist: ' + baseDir)
 
-  def getReviewer(self):
-    return 'ST'
+    reviewer = locationFile.readline().rstrip()
 
-  def getFiducialFilePath(self, labelStr):
-    baseDir = self.getBaseDir()
-    patientId = self.currentPatientId()
-    logging.info('getFiducialPath ' + patientId)
-    if not os.path.isdir(baseDir):
-      logging.info('Directory ' + baseDir + ' does not exist.')
-      return ''
-
-    markupDir = os.path.join(baseDir, 'markup', self.getReviewer())
-    if not os.path.isdir(markupDir):
-      os.makedirs(markupDir)
-    return os.path.join(markupDir, (patientId + '_' + labelStr))
+    return (baseDir, reviewer)
 
   def getPatientDirectories(self):
-    baseDir = self.getBaseDir()
-    if os.path.isdir(baseDir):
-      #logging.info(baseDir + ' exists')
-      patientsDir = os.path.join(baseDir, 'patients')
-      if os.path.isdir(patientsDir):
-        patientDirectories = os.listdir(patientsDir)
-        #logging.info('Found patient directory with ' + str(patientDirectories.__len__()) + ' entries')
-        return [d for d in patientDirectories if os.path.isdir(os.path.join(patientsDir, d))]
-      else:
-        logging.error('Not a directory: ' + patientsDir)
+    patientsDir = os.path.join(self.baseDir, 'patients')
+    if os.path.isdir(patientsDir):
+      patientDirectories = os.listdir(patientsDir)
+      logging.info('Found patient directory with ' + str(patientDirectories.__len__()) + ' entries')
+      return (patientsDir, [d for d in patientDirectories if os.path.isdir(os.path.join(patientsDir, d))])
     else:
-      logging.error('Unsuccessful at finding patient directories ' + baseDir)
-    return []
+      logging.error('Patients directory not found: ' + patientsDir)
+    
+    return ('', [])
+
+  def getMarkupDirectories(self):
+    markupBaseDir = os.path.join(self.baseDir, 'markup')
+    if not os.path.isdir(markupBaseDir):
+      os.makedirs(markupBaseDir)
+    currentUser = self.getReviewer()
+    userMarkupDir = os.path.join(markupBaseDir, currentUser)
+    if not os.path.isdir(userMarkupDir):
+      os.makedirs(userMarkupDir)
+    otherUsersMarkupDirs = [d for d in os.listdir(userMarkupDir) if d != currentUser]
+    logging.info('Markup directories, found ' + str(otherUsersMarkupDirs.__len__()) + ' others reviewers.')
+    return (markupBaseDir, userMarkupDir, otherUsersMarkupDirs)
+
+  def getReviewer(self):
+    return self.reviewer
+
+  def getFiducialFilePath(self, labelStr):
+    patientId = self.currentPatientId()
+    #markupDir = os.path.join(self.markupBaseDir, self.getReviewer())
+    #if not os.path.isdir(markupDir):
+    #  os.makedirs(markupDir)
+    return os.path.join(self.userMarkupDir, (patientId + '_' + labelStr))
 
   def numberOfPatients(self):
-    return self.getPatientDirectories().__len__()
-
-  def findSeries(self, studySHIndex, id, nameSearch, nameSearch2='', nodeType='vtkMRMLScalarVolumeNode'):
-    seriesIds = vtk.vtkIdList()
-    shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-    shNode.GetItemChildren(studySHIndex, seriesIds)
-    for i in range(seriesIds.GetNumberOfIds()):
-      seriesId = seriesIds.GetId(i)
-      dataNode = shNode.GetItemDataNode(seriesId)
-      if dataNode is not None:
-        name = dataNode.GetName()
-        if dataNode.GetClassName() == nodeType and nameSearch in name and nameSearch2 in name:
-          self.getParameterNode().SetNodeReferenceID(id, dataNode.GetID())
-          return dataNode
-    return None
+    return self.patientDirectories.__len__()
 
   def getNode(self, name):
     return self.getParameterNode().GetNodeReference(name)
@@ -420,7 +412,7 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
   def setPatient(self, newPatientIndex):
     logging.info('setPatient ' + str(newPatientIndex) + " current patient " + str(self.patientIndex))
     
-    patientDirs = self.getPatientDirectories()
+    patientDirs = self.patientDirectories
     if newPatientIndex < 0 or newPatientIndex >= self.numberOfPatients() or self.currentPatientIndex() == newPatientIndex:
       return False
 
@@ -431,7 +423,7 @@ class MRRectumTDNLMarkerLogic(ScriptedLoadableModuleLogic):
     self.patientIndex = newPatientIndex
     patientId = patientDirs[newPatientIndex]
 
-    patientPath = os.path.join(self.getBaseDir(), 'patients', patientId)
+    patientPath = os.path.join(self.patientBaseDir, patientId)
 
     volumes = os.listdir(patientPath)
 
